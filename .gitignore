@@ -1,0 +1,38 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
+*.pyc
+
+# Virtual environment
+venv/
+env/
+.env
+
+# Flask
+instance/
+.webassets-cache
+
+# Data files (sensor recordings - too large for git)
+*.csv
+*.npy
+
+# Model files (too large for git)
+*.tflite
+*.h5
+*.keras
+
+# VS Code
+.vscode/
+
+# Windows
+Thumbs.db
+desktop.ini
+
+# Jupyter notebooks checkpoints
+.ipynb_checkpoints/
+
+# Anaconda
+.conda/

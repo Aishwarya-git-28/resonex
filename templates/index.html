@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>RESONEX Dashboard</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body { font-family: sans-serif; background: #0f1117; color: #e0e0e0; padding: 24px; }
+  h1 { font-size: 22px; font-weight: 500; margin-bottom: 4px; }
+  .subtitle { font-size: 13px; color: #888; margin-bottom: 24px; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 24px; }
+  .card { background: #1a1d27; border: 1px solid #2a2d3a; border-radius: 12px; padding: 16px 20px; }
+  .card-label { font-size: 12px; color: #888; margin-bottom: 8px; text-transform: uppercase; letter-spacing: 0.05em; }
+  .card-value { font-size: 28px; font-weight: 500; }
+  .status-bar { background: #1a1d27; border: 1px solid #2a2d3a; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; display: flex; align-items: center; gap: 16px; }
+  .status-dot { width: 16px; height: 16px; border-radius: 50%; flex-shrink: 0; }
+  .status-dot.normal { background: #22c55e; box-shadow: 0 0 8px #22c55e; }
+  .status-dot.warning { background: #f59e0b; box-shadow: 0 0 8px #f59e0b; }
+  .status-dot.critical { background: #ef4444; box-shadow: 0 0 8px #ef4444; animation: pulse 0.8s infinite; }
+  @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.4} }
+  .status-text { font-size: 20px; font-weight: 500; }
+  .status-text.normal { color: #22c55e; }
+  .status-text.warning { color: #f59e0b; }
+  .status-text.critical { color: #ef4444; }
+  .status-meta { font-size: 13px; color: #888; margin-left: auto; }
+  .chart-card { background: #1a1d27; border: 1px solid #2a2d3a; border-radius: 12px; padding: 16px 20px; margin-bottom: 24px; }
+  .chart-card h3 { font-size: 14px; font-weight: 500; color: #888; margin-bottom: 12px; }
+  .log-card { background: #1a1d27; border: 1px solid #2a2d3a; border-radius: 12px; padding: 16px 20px; }
+  .log-card h3 { font-size: 14px; font-weight: 500; color: #888; margin-bottom: 12px; }
+  table { width: 100%; font-size: 13px; border-collapse: collapse; }
+  th { text-align: left; color: #555; font-weight: 400; padding: 6px 8px; border-bottom: 1px solid #2a2d3a; }
+  td { padding: 8px 8px; border-bottom: 1px solid #1e2130; }
+  .badge { padding: 2px 10px; border-radius: 20px; font-size: 12px; font-weight: 500; }
+  .badge.normal { background: #14532d; color: #4ade80; }
+  .badge.warning { background: #451a03; color: #fbbf24; }
+  .badge.critical { background: #450a0a; color: #f87171; }
+</style>
+</head>
+<body>
+
+<h1>RESONEX — Infrastructure Monitor</h1>
+<p class="subtitle">Non-invasive acoustic sensing · Edge AI · Real-time alerts</p>
+
+<div class="status-bar" id="status-bar">
+  <div class="status-dot normal" id="status-dot"></div>
+  <span class="status-text normal" id="status-text">NORMAL</span>
+  <span class="status-meta" id="status-meta">Waiting for data...</span>
+</div>
+
+<div class="grid">
+  <div class="card">
+    <div class="card-label">Active model</div>
+    <div class="card-value" id="active-model">—</div>
+  </div>
+  <div class="card">
+    <div class="card-label">Dominant frequency</div>
+    <div class="card-value" id="freq-val">— Hz</div>
+  </div>
+  <div class="card">
+    <div class="card-label">Confidence</div>
+    <div class="card-value" id="conf-val">— %</div>
+  </div>
+</div>
+
+<div class="chart-card">
+  <h3>Frequency trend (last 20 readings)</h3>
+  <canvas id="freqChart" height="80"></canvas>
+</div>
+
+<div class="log-card">
+  <h3>Alert log</h3>
+  <table>
+    <thead><tr><th>Time</th><th>Model</th><th>Status</th><th>Freq (Hz)</th><th>Confidence</th></tr></thead>
+    <tbody id="log-body"></tbody>
+  </table>
+</div>
+
+<script>
+const ctx = document.getElementById('freqChart').getContext('2d');
+const chart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: [],
+    datasets: [{
+      label: 'Dominant Frequency',
+      data: [],
+      borderColor: '#6366f1',
+      backgroundColor: 'rgba(99,102,241,0.1)',
+      tension: 0.4,
+      pointRadius: 3,
+      fill: true
+    }]
+  },
+  options: {
+    responsive: true,
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { ticks: { color: '#555' }, grid: { color: '#1e2130' } },
+      y: { ticks: { color: '#555' }, grid: { color: '#1e2130' } }
+    }
+  }
+});
+
+function updateDashboard(data) {
+  if (!data.length) return;
+  const latest = data[0];
+
+  const dot = document.getElementById('status-dot');
+  const text = document.getElementById('status-text');
+  dot.className = 'status-dot ' + latest.status;
+  text.className = 'status-text ' + latest.status;
+  text.textContent = latest.status.toUpperCase();
+  document.getElementById('status-meta').textContent =
+    latest.model.toUpperCase() + ' · ' + latest.timestamp.slice(11,19);
+  document.getElementById('active-model').textContent =
+    latest.model.charAt(0).toUpperCase() + latest.model.slice(1);
+  document.getElementById('freq-val').textContent = latest.dominant_freq + ' Hz';
+  document.getElementById('conf-val').textContent =
+    Math.round(latest.confidence * 100) + '%';
+
+  const last20 = data.slice(0, 20).reverse();
+  chart.data.labels = last20.map(d => d.timestamp.slice(11,19));
+  chart.data.datasets[0].data = last20.map(d => d.dominant_freq);
+  chart.update();
+
+  const tbody = document.getElementById('log-body');
+  tbody.innerHTML = data.slice(0, 15).map(d => `
+    <tr>
+      <td>${d.timestamp.slice(11,19)}</td>
+      <td>${d.model}</td>
+      <td><span class="badge ${d.status}">${d.status}</span></td>
+      <td>${d.dominant_freq}</td>
+      <td>${Math.round(d.confidence * 100)}%</td>
+    </tr>`).join('');
+}
+
+setInterval(async () => {
+  try {
+    const res = await fetch('/feed');
+    const data = await res.json();
+    updateDashboard(data);
+  } catch(e) {}
+}, 1000);
+</script>
+</body>
+</html>
