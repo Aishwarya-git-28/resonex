@@ -36,3 +36,5 @@ desktop.ini
 
 # Anaconda
 .conda/
+*.keras
+*.tflite
